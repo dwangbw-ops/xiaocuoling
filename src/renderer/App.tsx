@@ -5,8 +5,12 @@ import {
   emptyGithubSkillRecommendations,
   normalizeGithubSkillRecommendations,
 } from "../shared/githubRecommendationView";
-import { visualStageForPet } from "../shared/petPresentation";
 import { buildSessionNarrative } from "../shared/sessionNarrative";
+import {
+  buildToyGrowthPresentation,
+  petLevelForStage,
+  stageLabel,
+} from "../shared/toyGrowthPresentation";
 import type {
   AppSnapshot,
   CodexEventEvidence,
@@ -16,33 +20,6 @@ import type {
   WeeklyReport,
 } from "../shared/types";
 import type { XiaocuolingApi } from "../preload/preload";
-
-const stageCopy: Record<PetStage, string> = {
-  egg: "你有 Codex 基础，但我还没看到真实交付。",
-  chaos: "工具库很大，但还没有变成你的能力。",
-  apprentice: "有一些交付证据，但还得继续验证。",
-  maker: "你开始稳定留下交付闭环。",
-  mage: "你能更清楚地指挥 Codex 完成验证。",
-  creator: "你能持续把想法变成可运行的东西。",
-};
-
-const stageLabel: Record<PetStage, string> = {
-  egg: "Lv.1 初醒小搓灵",
-  chaos: "Lv.2 纸箱小搓灵",
-  apprentice: "Lv.3 工具小搓灵",
-  maker: "Lv.4 Prompt 小法师",
-  mage: "Lv.5 造物小搓灵",
-  creator: "Lv.6 高阶造物灵",
-};
-
-const archetypeLabel: Record<GrowthArchetype, string> = {
-  builder: "建造型",
-  debugger: "修 bug 型",
-  prompt_master: "指令型",
-  explorer: "探索型",
-  shipper: "交付型",
-  balanced: "均衡型",
-};
 
 const emptySnapshot: AppSnapshot = {
   projects: [],
@@ -55,7 +32,7 @@ const emptySnapshot: AppSnapshot = {
     exp: 0,
     purificationScore: 0,
     aiCapabilityScore: 0,
-    currentMood: stageCopy.egg,
+    currentMood: "你有 Codex 基础，但我还没看到真实交付。",
     unlockedItems: [],
     lastActiveDate: new Date(0).toISOString(),
     codexBaseline: null,
@@ -134,7 +111,7 @@ function App() {
 }
 
 function PetWindow({ snapshot }: { snapshot: AppSnapshot }) {
-  const stage = visualStageForPet(snapshot.petState, snapshot.sessions);
+  const presentation = buildToyGrowthPresentation(snapshot);
   const badgeValue = desktopPetBadge(snapshot);
   return (
     <main className="pet-window">
@@ -144,7 +121,7 @@ function PetWindow({ snapshot }: { snapshot: AppSnapshot }) {
         onClick={() => xiaocuoling.openPanel()}
         title="打开小搓灵主面板"
       >
-        <PetAvatar stage={stage} archetype={snapshot.petState.archetype} compact />
+        <PetAvatar stage={presentation.stage} archetype={snapshot.petState.archetype} compact />
         <span>{badgeValue}</span>
         <em>{petHoverLine(snapshot)}</em>
       </button>
@@ -161,16 +138,13 @@ function MainPanel({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const latestSession = snapshot.sessions.find((session) => session.endTime);
+  const presentation = buildToyGrowthPresentation(snapshot);
   const latestReport = snapshot.weeklyReports.find((report) => report.period === "daily")
     ?? snapshot.weeklyReports.find((report) => (report.period ?? "weekly") === "weekly")
     ?? null;
 
   const completedSessions = snapshot.sessions.filter((session) => session.endTime);
   const hasRealSessions = completedSessions.length > 0;
-  const nextStage = nextStageInfo(snapshot.petState.purificationScore);
-  const visualStage = visualStageForPet(snapshot.petState, snapshot.sessions);
-  const growthScore = hasRealSessions ? snapshot.petState.aiCapabilityScore : "暂无";
   const weekTrend = hasRealSessions && latestReport ? trendLabel(latestReport.trend) : "暂无数据";
 
   const handleOneClickCodexConnect = async () => {
@@ -191,37 +165,65 @@ function MainPanel({
       <header className="panel-topbar">
         <div>
           <p className="eyebrow">小搓灵 · Codex 能力成长宠物</p>
-          <h1>你的 Codex 成长镜像</h1>
+          <h1>AI 能力成长潮玩展示柜</h1>
+        </div>
+        <div className="level-pill">
+          <span>{presentation.stageName}</span>
+          <strong>{presentation.archetypeName}</strong>
         </div>
       </header>
 
-      <section className="overview-grid">
-        <div className="growth-card">
-          <div className="pet-stage-wrap">
-            <PetAvatar stage={visualStage} archetype={snapshot.petState.archetype} />
+      <section className="toy-hero-grid">
+        <div className="toy-showcase-card">
+          <div className="toy-light-ring" />
+          <div className="toy-stage-copy">
+            <span>当前形态</span>
+            <strong>{presentation.stageName}</strong>
+            <p>{presentation.feedback}</p>
           </div>
-          <div className="growth-copy">
-            <p className="eyebrow">宠物成长</p>
-            <h2>{petDisplayName(visualStage, snapshot.petState.archetype)}</h2>
-            <p className="stage-line">{archetypeLabel[snapshot.petState.archetype]}</p>
-            <p className="feedback-line">
-              {latestSession?.feedback ?? snapshot.petState.currentMood}
-            </p>
-            <div className="progress-row">
-              <span>净化值 {Math.round(snapshot.petState.purificationScore)}</span>
-              <span>{nextStage ? `距离 ${stageLabel[nextStage.stage]} 还差 ${nextStage.remaining}` : "已满阶"}</span>
+          <div className="toy-display-plinth">
+            <PetAvatar stage={presentation.stage} archetype={snapshot.petState.archetype} />
+            <div className="acrylic-base">
+              <span>Lv.{presentation.level}</span>
+              <small>purify {presentation.purification}</small>
             </div>
-            <div className="progress-track">
-              <div style={{ width: `${nextStage?.progress ?? 100}%` }} />
-            </div>
+          </div>
+          <div className="growth-orbit">
+            <span />
+            <span />
+            <span />
           </div>
         </div>
 
-        <div className="score-grid compact-score-grid">
-          <Metric label="当前等级" value={stageLabel[visualStage]} />
-          <Metric label="AI 使用能力" value={growthScore} />
-          <Metric label="净化值" value={Math.round(snapshot.petState.purificationScore)} />
-          <Metric label="趋势" value={weekTrend} />
+        <div className="growth-dashboard">
+          <section className="report-hero-card">
+            <p className="eyebrow">能力报告摘要</p>
+            <h2>{hasRealSessions ? abilityHeadline(latestReport) : "你有 Codex 基础，但我还没看到真实交付。"}</h2>
+            <p>{hasRealSessions ? abilityAdvice(latestReport) : "读取后会只展示真实 session、交付证据和使用习惯，不用工具清单冒充成长。"}</p>
+          </section>
+
+          <div className="score-grid toy-score-grid">
+            <Metric label="当前等级" value={`Lv.${presentation.level}`} />
+            <Metric label="AI 使用能力" value={presentation.growthScore} />
+            <Metric label="净化值" value={presentation.purification} />
+            <Metric label="本周趋势" value={weekTrend} />
+          </div>
+
+          <section className="next-stage-card">
+            <div>
+              <span>下一阶段</span>
+              <strong>
+                {presentation.nextStage
+                  ? `${presentation.nextStage.label} · 还差 ${presentation.nextStage.remaining}`
+                  : "已满阶"}
+              </strong>
+            </div>
+            <div className="progress-track energy-track">
+              <div style={{ width: `${presentation.nextStage?.progress ?? 100}%` }} />
+            </div>
+          </section>
+
+          <RecentMemoryCard memory={presentation.recentMemory} />
         </div>
       </section>
 
@@ -255,6 +257,33 @@ function ReadCodexButton({
     >
       {busy === "codex-connect-all" ? "正在读取..." : "读取全部 Codex 使用过程"}
     </button>
+  );
+}
+
+function RecentMemoryCard({
+  memory,
+}: {
+  memory: { project: string; goal: string; items: string[] } | null;
+}) {
+  return (
+    <section className="recent-memory-card">
+      <div className="memory-card-head">
+        <span>最近一次成长记忆</span>
+        <strong>{memory ? memory.project : "暂无真实交付"}</strong>
+      </div>
+      {memory ? (
+        <>
+          <p>{memory.goal}</p>
+          <ul>
+            {memory.items.slice(0, 3).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p>读取 Codex 后，这里只显示真实项目、真实整改方向和交付结果。</p>
+      )}
+    </section>
   );
 }
 
@@ -496,29 +525,26 @@ function trendLabel(trend?: string) {
   return "暂无数据";
 }
 
+function abilityHeadline(report: WeeklyReport | null) {
+  if (!report || !hasRealReportInsights(report)) {
+    return "已读取真实记录，等待下一次日报形成习惯判断。";
+  }
+  return report.habitSummary;
+}
+
+function abilityAdvice(report: WeeklyReport | null) {
+  if (!report || !hasRealReportInsights(report)) {
+    return "继续留下清晰目标、运行验证和交付结果，小搓灵才会把它记成成长。";
+  }
+  return report.optimizationAdvice;
+}
+
 function userFacingError(caught: unknown): string {
   const raw = caught instanceof Error ? caught.message : String(caught);
   if (/EMFILE|too many open files/i.test(raw)) {
     return "连接时打开文件过多。已改为流式读取，请重新点一次“一键读取全部 Codex 使用过程”。";
   }
   return raw.replace(/^Error invoking remote method '[^']+':\s*/i, "");
-}
-
-function petDisplayName(stage: PetStage, archetype: GrowthArchetype): string {
-  void archetype;
-  return stageLabel[stage];
-}
-
-function petLevelForStage(stage: PetStage): number {
-  const levels: Record<PetStage, number> = {
-    egg: 1,
-    chaos: 2,
-    apprentice: 3,
-    maker: 4,
-    mage: 5,
-    creator: 6,
-  };
-  return levels[stage];
 }
 
 function petHoverLine(snapshot: AppSnapshot): string {
@@ -531,28 +557,7 @@ function petHoverLine(snapshot: AppSnapshot): string {
 }
 
 function desktopPetBadge(snapshot: AppSnapshot): string {
-  return `Lv.${petLevelForStage(visualStageForPet(snapshot.petState, snapshot.sessions))}`;
-}
-
-function nextStageInfo(score: number): { stage: PetStage; remaining: number; progress: number } | null {
-  const thresholds: Array<{ stage: PetStage; start: number; end: number }> = [
-    { stage: "egg", start: 0, end: 30 },
-    { stage: "chaos", start: 31, end: 100 },
-    { stage: "apprentice", start: 101, end: 220 },
-    { stage: "maker", start: 221, end: 400 },
-    { stage: "mage", start: 401, end: 700 },
-    { stage: "creator", start: 701, end: Number.POSITIVE_INFINITY },
-  ];
-  const currentIndex = thresholds.findIndex((item) => score >= item.start && score <= item.end);
-  const current = thresholds[currentIndex] ?? thresholds[0];
-  const next = thresholds[currentIndex + 1];
-  if (!next) return null;
-  const span = current.end - current.start + 1;
-  return {
-    stage: next.stage,
-    remaining: Math.max(0, Math.ceil(next.start - score)),
-    progress: Math.min(100, Math.max(0, ((score - current.start) / span) * 100)),
-  };
+  return `Lv.${buildToyGrowthPresentation(snapshot).level}`;
 }
 
 function statusLabel(status: string) {
