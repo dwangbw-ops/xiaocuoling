@@ -10,7 +10,6 @@ import type {
   CodexHookEvent,
   CodexLinkStatus,
   CodexSessionRecord,
-  CommandRecord,
   GrowthArchetype,
   PetStage,
   SkillRecord,
@@ -66,7 +65,7 @@ const emptySnapshot: AppSnapshot = {
   codexLink: null,
 };
 
-const demoCommands = [
+const commandShortcuts = [
   "npm run dev",
   "npm run build",
   "npm test",
@@ -90,246 +89,32 @@ const emptyCodexEvidence: CodexEventEvidence = {
   shouldIncreasePurificationDirectly: false,
 };
 
-const demoCommand: CommandRecord = {
-  command: "npm run build",
-  startTime: "2026-05-23T05:12:00.000Z",
-  endTime: "2026-05-23T05:12:28.000Z",
-  exitCode: 0,
-  success: true,
-  outputSummary: "展示版摘要：build completed successfully.",
+const requireDesktopRuntime = async (): Promise<never> => {
+  throw new Error("当前页面没有 Electron 本地权限，无法读取真实 Codex 数据。请从桌面应用打开。");
 };
 
-const demoSnapshot: AppSnapshot = {
-  projects: [
-    {
-      projectId: "demo_project",
-      name: "小搓灵展示项目",
-      path: "公开展示版不连接本机路径",
-      createdAt: "2026-05-23T05:00:00.000Z",
-      lastOpenedAt: "2026-05-23T05:20:00.000Z",
-    },
-  ],
-  sessions: [
-    {
-      sessionId: "demo_session_breakthrough",
-      projectId: "demo_project",
-      projectPath: "公开展示版不连接本机路径",
-      taskGoal:
-        "只实现桌面端 Codex 能力成长宠物 MVP，保留本地 JSON 存储，不接后端，不读取 Codex 私有聊天内容，完成后 npm run build 通过。",
-      startTime: "2026-05-23T05:00:00.000Z",
-      endTime: "2026-05-23T05:20:00.000Z",
-      duration: 1200000,
-      beforeCommitHash: "demo-before",
-      beforeGitStatus: "clean",
-      beforePackageJsonDependencies: [],
-      beforeFileSnapshot: {},
-      afterCommitHash: "demo-after",
-      afterGitStatus: "modified",
-      afterPackageJsonDependencies: ["electron", "vite", "tailwindcss", "chokidar"],
-      afterFileSnapshot: {},
-      changedFilesCount: 18,
-      addedFilesCount: 10,
-      deletedFilesCount: 0,
-      modifiedFilesCount: 8,
-      newDependencies: ["electron", "chokidar"],
-      detectedSkills: ["electron-desktop", "local-storage", "testing"],
-      commandsRun: [demoCommand],
-      successfulCommands: 1,
-      failedCommands: 0,
-      buildSuccess: true,
-      testSuccess: true,
-      gitCommitCreated: false,
-      status: "breakthrough",
-      score: 100,
-      promptClarityScore: 92,
-      feedback: "你解锁了新的能力，我的身体被净化了一块。",
-    },
-  ],
-  skills: [
-    {
-      skillId: "electron-desktop",
-      name: "Electron 桌面端",
-      source: "local",
-      githubRepo: "",
-      firstDetectedAt: "2026-05-23T05:20:00.000Z",
-      lastUsedAt: "2026-05-23T05:20:00.000Z",
-      detectedCount: 2,
-      deliveredCount: 1,
-      breakthroughCount: 1,
-      qualityScore: null,
-      usageScore: 25,
-      sourceSessionId: "demo_session_breakthrough",
-      sourceProjectId: "demo_project",
-      evidence: ["electron"],
-      qualityEvidence: {
-        stars: 0,
-        forks: 0,
-        openIssues: 0,
-        lastPushedAt: null,
-        hasReadme: false,
-        hasExamples: false,
-        hasLicense: false,
-        repoAgeDays: 0,
-      },
-      level: 0,
-    },
-    {
-      skillId: "local-storage",
-      name: "本地存储",
-      source: "local",
-      githubRepo: "",
-      firstDetectedAt: "2026-05-23T05:20:00.000Z",
-      lastUsedAt: "2026-05-23T05:20:00.000Z",
-      detectedCount: 2,
-      deliveredCount: 1,
-      breakthroughCount: 1,
-      qualityScore: null,
-      usageScore: 25,
-      sourceSessionId: "demo_session_breakthrough",
-      sourceProjectId: "demo_project",
-      evidence: ["json db"],
-      qualityEvidence: {
-        stars: 0,
-        forks: 0,
-        openIssues: 0,
-        lastPushedAt: null,
-        hasReadme: false,
-        hasExamples: false,
-        hasLicense: false,
-        repoAgeDays: 0,
-      },
-      level: 0,
-    },
-    {
-      skillId: "testing",
-      name: "测试能力",
-      source: "local",
-      githubRepo: "",
-      firstDetectedAt: "2026-05-23T05:20:00.000Z",
-      lastUsedAt: "2026-05-23T05:20:00.000Z",
-      detectedCount: 1,
-      deliveredCount: 1,
-      breakthroughCount: 1,
-      qualityScore: null,
-      usageScore: 25,
-      sourceSessionId: "demo_session_breakthrough",
-      sourceProjectId: "demo_project",
-      evidence: ["vitest"],
-      qualityEvidence: {
-        stars: 0,
-        forks: 0,
-        openIssues: 0,
-        lastPushedAt: null,
-        hasReadme: false,
-        hasExamples: false,
-        hasLicense: false,
-        repoAgeDays: 0,
-      },
-      level: 0,
-    },
-  ],
-  petState: {
-    stage: "chaos",
-    baselineStage: "maker",
-    archetype: "builder",
-    exp: 120,
-    purificationScore: 23,
-    aiCapabilityScore: 37,
-    currentMood: "我还没完全净化，但这次有真实交付证据。",
-    unlockedItems: ["Electron 桌面端", "本地存储", "测试能力"],
-    lastActiveDate: "2026-05-23T05:20:00.000Z",
-    codexBaseline: {
-      capturedAt: "2026-05-23T05:20:00.000Z",
-      codexHome: "公开展示版不读取本机目录",
-      codexHomePresent: true,
-      configPresent: true,
-      customSkillCount: 46,
-      pluginSkillCount: 89,
-      bundledSkillCount: 5,
-      sampledSkillNames: ["electron", "vite", "tailwind", "testing"],
-      aiCapabilityScore: 84,
-      purificationFloor: 0,
-      expFloor: 0,
-      summary:
-        "公开展示版：按本机 Codex 元数据校准后的展示状态，自定义技能 46 个，插件技能 89 个，基础技能 5 个。",
-    },
-  },
-  weeklyReports: [
-    {
-      reportId: "demo_week",
-      startDate: "2026-05-17",
-      endDate: "2026-05-23",
-      aiCapabilityScore: 84,
-      trend: "up",
-      effectiveSessions: 5,
-      inactiveSessions: 1,
-      deliveredSessions: 3,
-      breakthroughSessions: 1,
-      newSkills: 3,
-      buildSuccessRate: 67,
-      promptClarityAverage: 84,
-      summary:
-        "你的 AI 使用能力本周上升。使用闭环增加，目标表达更清楚，但仍有一次使用没有留下可验证成果。",
-      habitSummary: "这周你更像是在围绕结果使用 Codex，而不是单纯试工具。",
-      optimizationAdvice:
-        "你已经能完成闭环，下一步要做的是复盘：哪类任务最顺、哪类任务最容易卡住。",
-      nextPractice:
-        "下一次在任务目标里提前写清验收标准，并在结束后做 30 秒复盘。",
-    },
-  ],
-  activeSession: null,
-  codexLink: {
-    codexCliDetected: true,
-    codexVersion: "codex demo",
-    configPath: "公开展示版",
-    configExists: true,
-    projectHooksCanInstall: false,
-    projectHooksInstalled: false,
-    projectHookPath: "",
-    recentEventCount: 0,
-    latestEventAt: null,
-    latestSessionId: "",
-    connectionMode: "manual",
-    privacyNotice:
-      "我不会读取 Codex 宠物，也不会复制它。我只观察你是否真的用 Codex 完成交付。",
-  },
-};
-
-const browserDemoApi: XiaocuolingApi = {
-  getState: async () => demoSnapshot,
-  getCommands: async () => demoCommands,
-  openPanel: async () => demoSnapshot,
-  resetData: async () => demoSnapshot,
-  selectProject: async () => demoSnapshot,
-  calibrateFromCodex: async () => demoSnapshot,
-  getCodexLinkStatus: async () => demoSnapshot.codexLink as CodexLinkStatus,
-  connectCodexGlobal: async () => ({
-    snapshot: demoSnapshot,
-    status: demoSnapshot.codexLink as CodexLinkStatus,
-    events: [],
-  }),
-  installCodexHooks: async () => demoSnapshot.codexLink as CodexLinkStatus,
+const browserUnavailableApi: XiaocuolingApi = {
+  getState: async () => emptySnapshot,
+  getCommands: async () => commandShortcuts,
+  openPanel: async () => emptySnapshot,
+  resetData: requireDesktopRuntime,
+  selectProject: requireDesktopRuntime,
+  calibrateFromCodex: requireDesktopRuntime,
+  getCodexLinkStatus: requireDesktopRuntime,
+  connectCodexGlobal: requireDesktopRuntime,
+  installCodexHooks: requireDesktopRuntime,
   getCodexHookEvents: async () => ({
     events: [],
     evidence: emptyCodexEvidence,
   }),
-  disconnectCodex: async () => demoSnapshot.codexLink as CodexLinkStatus,
-  startSession: async () => ({
-    ...demoSnapshot,
-    activeSession: demoSnapshot.sessions[0],
-  }),
-  endSession: async () => demoSnapshot,
-  runCommand: async (command) => ({
-    snapshot: demoSnapshot,
-    command: {
-      ...demoCommand,
-      command,
-    },
-  }),
+  disconnectCodex: requireDesktopRuntime,
+  startSession: requireDesktopRuntime,
+  endSession: requireDesktopRuntime,
+  runCommand: requireDesktopRuntime,
   onStateUpdated: () => () => undefined,
 };
 
-const xiaocuoling = window.xiaocuoling ?? browserDemoApi;
+const xiaocuoling = window.xiaocuoling ?? browserUnavailableApi;
 
 function App() {
   const [snapshot, setSnapshot] = useState<AppSnapshot>(emptySnapshot);
@@ -1079,6 +864,15 @@ function ReportSummary({
     );
   }
 
+  if (!hasRealReportInsights(report)) {
+    return (
+      <div className="report-summary-card">
+        <strong>{label}</strong>
+        <p className="muted">这份报告没有真实习惯分析字段。等待下一次日报或周报生成后再展示。</p>
+      </div>
+    );
+  }
+
   return (
     <div className="report-summary-card">
       <div className="report-card-heading">
@@ -1086,15 +880,18 @@ function ReportSummary({
         <span>{trendText(report.trend)}</span>
       </div>
       <div className="report-insight-list">
-        <ReportInsight label="使用习惯" text={report.habitSummary ?? fallbackHabitSummary(report)} />
-        <ReportInsight
-          label="优化方向"
-          text={report.optimizationAdvice ?? fallbackOptimizationAdvice(report)}
-        />
-        <ReportInsight label="下一次练习" text={report.nextPractice ?? fallbackNextPractice(report)} />
+        <ReportInsight label="使用习惯" text={report.habitSummary} />
+        <ReportInsight label="优化方向" text={report.optimizationAdvice} />
+        <ReportInsight label="下一次练习" text={report.nextPractice} />
       </div>
       <p className="report-note">{report.summary}</p>
     </div>
+  );
+}
+
+function hasRealReportInsights(report: WeeklyReport) {
+  return [report.habitSummary, report.optimizationAdvice, report.nextPractice].every(
+    (value) => typeof value === "string" && value.trim().length > 0,
   );
 }
 
@@ -1111,27 +908,6 @@ function trendText(trend: WeeklyReport["trend"]) {
   if (trend === "up") return "变好";
   if (trend === "down") return "变弱";
   return "暂无明显变化";
-}
-
-function fallbackHabitSummary(report: WeeklyReport) {
-  if (report.deliveredSessions > 0) return "你已经开始把 Codex 使用推进到可确认的结果。";
-  if (report.effectiveSessions > 0) return "你有推进项目的动作，但还没有稳定形成闭环。";
-  return "你有 Codex 基础，但我还没看到真实交付。";
-}
-
-function fallbackOptimizationAdvice(report: WeeklyReport) {
-  if (report.promptClarityAverage < 55) {
-    return "先把目标、范围和成功标准写清楚，再让 Codex 动手。";
-  }
-  if (report.deliveredSessions === 0) {
-    return "减少只聊不收尾的使用方式，结束前确认结果能用。";
-  }
-  return "保留这次有效的指挥方式，并复盘哪里最容易卡住。";
-}
-
-function fallbackNextPractice(report: WeeklyReport) {
-  if (report.inactiveSessions > 0) return "下一次直接给一个小范围任务，避免只停留在沟通。";
-  return "下一次用一句话写清验收标准，再开始执行。";
 }
 
 function ScoreEvidenceCard({ snapshot }: { snapshot: AppSnapshot }) {
