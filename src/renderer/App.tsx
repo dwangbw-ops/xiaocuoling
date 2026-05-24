@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import {
+  emptyGithubSkillRecommendations,
+  normalizeGithubSkillRecommendations,
+} from "../shared/githubRecommendationView";
 import { visualStageForPet } from "../shared/petPresentation";
 import { buildSessionNarrative } from "../shared/sessionNarrative";
 import type {
@@ -57,14 +61,7 @@ const emptySnapshot: AppSnapshot = {
     codexBaseline: null,
   },
   weeklyReports: [],
-  githubSkillRecommendations: {
-    fetchedAt: null,
-    source: "github-api",
-    query: "",
-    minStars: 1000,
-    recommendations: [],
-    error: null,
-  },
+  githubSkillRecommendations: emptyGithubSkillRecommendations,
   activeSession: null,
   codexLink: null,
 };
@@ -389,7 +386,7 @@ function AbilityReportsBlock({ reports }: { reports: WeeklyReport[] }) {
 }
 
 function GithubSkillRecommendationsBlock({ snapshot }: { snapshot: AppSnapshot }) {
-  const github = snapshot.githubSkillRecommendations;
+  const github = normalizeGithubSkillRecommendations(snapshot.githubSkillRecommendations);
   return (
     <section className="info-panel github-recommend-panel">
       <h2>GitHub Skill 推荐</h2>
