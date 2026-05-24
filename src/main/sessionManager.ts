@@ -531,12 +531,13 @@ export class SessionManager {
       const startTime = ordered[0]?.timestamp ?? new Date().toISOString();
       const endTime = ordered[ordered.length - 1]?.timestamp ?? startTime;
       const projectPath = ordered.find((event) => event.cwd)?.cwd ?? "";
+      const taskGoal = taskGoalFromEvents(ordered);
 
       const session: CodexSessionRecord = {
         sessionId: stableSessionId,
         projectId: "codex-global-history",
         projectPath,
-        taskGoal: "Codex 全局历史使用过程（仅保存元数据，不保存完整 prompt）",
+        taskGoal,
         startTime,
         endTime,
         duration: Math.max(0, new Date(endTime).getTime() - new Date(startTime).getTime()),
@@ -1031,6 +1032,14 @@ function promptClarityScoreFromEvents(events: CodexHookEvent[]): number {
   });
 
   return Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+}
+
+function taskGoalFromEvents(events: CodexHookEvent[]): string {
+  return (
+    events
+      .map((event) => event.promptSummary?.trim() ?? "")
+      .find(Boolean) ?? "Codex 全局历史使用过程（仅保存元数据，不保存完整 prompt）"
+  );
 }
 
 function latestEventMs(events: CodexHookEvent[]): number {

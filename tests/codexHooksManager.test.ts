@@ -77,6 +77,7 @@ describe("codex hooks manager", () => {
       hasBuild: true,
       hasTest: true,
     });
+    expect(promptEvent.promptSummary).toBe("首页");
     expect(JSON.stringify(promptEvent)).not.toContain("只修改首页");
     expect(preTool.commandSummary).toBe("npm run build");
     expect(JSON.stringify(preTool)).not.toContain("sk-secret");
@@ -104,7 +105,7 @@ describe("codex hooks manager", () => {
         input: JSON.stringify({
           hookEventName: "UserPromptSubmit",
           sessionId: "s1",
-          prompt: "不要保存完整 prompt",
+          prompt: "做一个 content 离谱 MVP 雷达，针对 UI 进行整改，不要保存完整 prompt",
         }),
       });
       execFileSync(process.execPath, [result.hookPath], {
@@ -119,6 +120,7 @@ describe("codex hooks manager", () => {
 
       const content = readFileSync(logPath, "utf8");
       expect(content).toContain("UserPromptSubmit");
+      expect(content).toContain("content 离谱 MVP 雷达");
       expect(content).not.toContain("不要保存完整 prompt");
       expect(content).not.toContain("abc123");
       expect(await readCodexHookEvents(logPath)).toHaveLength(2);
@@ -148,7 +150,12 @@ describe("codex history importer", () => {
             payload: {
               type: "message",
               role: "user",
-              content: [{ type: "input_text", text: "不要保存完整 prompt，完成后 npm run build。" }],
+              content: [
+                {
+                  type: "input_text",
+                  text: "做一个 content 离谱 MVP 雷达，针对 UI 进行整改，不要保存完整 prompt，完成后 npm run build。",
+                },
+              ],
             },
           },
           {
@@ -183,6 +190,7 @@ describe("codex history importer", () => {
       expect(result.scannedSessions).toBe(1);
       expect(result.importedEvents).toBeGreaterThanOrEqual(4);
       expect(content).toContain("codex-history");
+      expect(content).toContain("content 离谱 MVP 雷达");
       expect(content).not.toContain("不要保存完整 prompt");
       expect(content).not.toContain("sk-secret");
       expect(content).not.toContain("secret output secret output secret output");

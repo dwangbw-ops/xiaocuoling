@@ -272,6 +272,7 @@ export interface CodexHookEvent {
   toolUseId: string;
   turnId: string;
   promptLength?: number;
+  promptSummary?: string;
   hasScopeWords?: boolean;
   hasAcceptanceCriteria?: boolean;
   promptClaritySignals?: {

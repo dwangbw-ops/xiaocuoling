@@ -6,7 +6,8 @@ const baseSession: CodexSessionRecord = {
   sessionId: "s1",
   projectId: "p1",
   projectPath: "/Users/wangdingwen/Documents/小搓灵",
-  taskGoal: "把日报改成使用习惯复盘，不展示技术细节。",
+  taskGoal:
+    "做一个 content 离谱 MVP 雷达，针对 UI 进行整改，针对功能补齐推荐逻辑，不要出现 document 技术细节。",
   startTime: "2026-05-24T05:00:00.000Z",
   endTime: "2026-05-24T05:20:00.000Z",
   duration: 1200000,
@@ -46,16 +47,16 @@ const baseSession: CodexSessionRecord = {
 };
 
 describe("session narrative", () => {
-  it("describes the real project and work evidence without fabricated filler", () => {
+  it("summarizes the project theme and meaningful improvements instead of technical noise", () => {
     const narrative = buildSessionNarrative(baseSession);
 
     expect(narrative.projectName).toBe("小搓灵");
-    expect(narrative.goal).toBe("把日报改成使用习惯复盘，不展示技术细节。");
-    expect(narrative.items).toContain("文件变化：3 个文件（新增 1，修改 2，删除 0）");
-    expect(narrative.items).toContain("运行命令：npm test（成功）");
-    expect(narrative.items).toContain("验证结果：测试通过");
-    expect(narrative.items.join(" ")).not.toContain("工具入口不等于能力");
-    expect(narrative.items.join(" ")).not.toContain("检测到工具");
+    expect(narrative.goal).toBe("content 离谱 MVP 雷达");
+    expect(narrative.items).toContain("UI 整改：调整界面、层级或展示方式");
+    expect(narrative.items).toContain("功能整改：补齐读取、分析或推荐逻辑");
+    expect(narrative.items).toContain("数据整改：保留真实记录，过滤无意义细节");
+    expect(narrative.items).toContain("结果：已留下可验证结果");
+    expect(narrative.items.join(" ")).not.toMatch(/文件变化|运行命令|npm|document|SKILL/i);
   });
 
   it("does not invent a task goal when Codex history only has metadata", () => {
@@ -73,7 +74,7 @@ describe("session narrative", () => {
     });
 
     expect(narrative.projectName).toBe("未记录项目");
-    expect(narrative.goal).toBe("未记录任务目标");
-    expect(narrative.items).toEqual(["未记录具体操作"]);
+    expect(narrative.goal).toBe("未记录任务主题");
+    expect(narrative.items).toEqual(["未记录有效整改方向"]);
   });
 });

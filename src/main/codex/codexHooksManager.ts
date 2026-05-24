@@ -1,5 +1,6 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { summarizeTaskTheme } from "../../shared/taskSummary";
 import type { CodexHookEvent, CodexHookEventName } from "../../shared/types";
 
 export interface InstallCodexHooksInput {
@@ -69,6 +70,7 @@ export function normalizeHookPayload(payload: Record<string, unknown>): CodexHoo
   );
   const toolInput = asRecord(payload.toolInput ?? payload.tool_input ?? payload.input);
   const prompt = firstString(payload, ["prompt", "userPrompt", "user_prompt"]);
+  const promptSummary = prompt ? summarizeTaskTheme(prompt) : "";
   const command =
     firstString(payload, ["command", "cmd"]) ||
     firstString(toolInput, ["command", "cmd"]);
@@ -119,6 +121,7 @@ export function normalizeHookPayload(payload: Record<string, unknown>): CodexHoo
     ...(prompt
       ? {
           promptLength: prompt.length,
+          ...(promptSummary ? { promptSummary } : {}),
           hasScopeWords: Boolean(promptClaritySignals?.hasOnlyModify || promptClaritySignals?.hasPreserve),
           hasAcceptanceCriteria: Boolean(
             promptClaritySignals?.hasAcceptance ||
@@ -189,6 +192,45 @@ function sanitizeCommandSummary(command) {
   return redacted.split(/\\s+/).slice(0, 4).join(" ");
 }
 
+function summarizeTaskTheme(value) {
+  if (typeof value !== "string") return "";
+  const tick = String.fromCharCode(96);
+  const fence = tick + tick + tick;
+  let clean = value
+    .replace(new RegExp(fence + "[\\\\s\\\\S]*?" + fence, "g"), " ")
+    .replace(new RegExp(tick + "[^" + tick + "]*" + tick, "g"), " ")
+    .replace(/(不要|别|无需|不需要|不能|不允许|do not|don't|without)\\s*[^，。,.；;\\n]*/gi, " ")
+    .replace(/\\b(?:npm|pnpm|yarn|git)\\s+[^\\u3002\\uff0c,;；\\n]*/gi, " ")
+    .replace(/\\b(?:document|documents|skill|readme|package\\.json|tsconfig)\\b/gi, " ")
+    .replace(/[^\\S\\r\\n]+/g, " ")
+    .trim();
+  if (!clean) return "";
+  const patterns = [
+    /只\\s*(?:修改|改|做|保留)\\s*([^，。,.；;\\n]+?)(?=，|。|,|；|;|\\n|$)/i,
+    /(?:做|开发|实现|搭建|新增|创建)\\s*(?:一个|这个|这种|一款)?\\s*([^，。,.；;\\n]+?)(?=，|。|,|；|;|\\n|$)/i,
+    /把\\s*([^，。,.；;\\n]+?)\\s*(?:改成|做成|调整成|重构为)\\s*([^，。,.；;\\n]+)/i
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(clean);
+    const candidate = cleanupTaskCandidate(match ? [match[1], match[2]].filter(Boolean).join("") : "");
+    if (candidate) return candidate;
+  }
+  return cleanupTaskCandidate(clean.split(/[，。,.；;\\n]/)[0] || "");
+}
+
+function cleanupTaskCandidate(value) {
+  return String(value || "")
+    .replace(/^(?:一个|这个|这种|本次|这次|当前|我的|我这个)\\s*/i, "")
+    .replace(/^(?:content|AI|Codex)\\s*$/i, "")
+    .replace(/^(?:针对|进行|完成|处理)\\s*/i, "")
+    .replace(/\\s*(?:进行整改|整改|优化|修复|改造|补齐|调整|重排|重构)\\s*$/i, "")
+    .replace(/\\b(?:document|documents|skill|readme|npm|git)\\b/gi, "")
+    .replace(/\\s+/g, " ")
+    .replace(/[：:，。,.；;\\s]+$/g, "")
+    .trim()
+    .slice(0, 80);
+}
+
 function summarizeOutput(output) {
   if (typeof output !== "string" || !output.trim()) return "";
   return output.replace(secretPattern, "$1[redacted]").replace(/\\s+/g, " ").trim().slice(0, 180);
@@ -246,7 +288,9 @@ function normalize(payload) {
     transcriptPathExists: Boolean(firstString(payload, ["transcriptPath", "transcript_path"]))
   };
   if (prompt) {
+    const promptSummary = summarizeTaskTheme(prompt);
     event.promptLength = prompt.length;
+    if (promptSummary) event.promptSummary = promptSummary;
     event.promptClaritySignals = {
       hasOnlyModify: /只\\s*修改|只改|only/i.test(prompt),
       hasDoNot: /不要|不能|不允许|do not|don't/i.test(prompt),

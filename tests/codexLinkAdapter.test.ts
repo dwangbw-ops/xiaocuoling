@@ -41,6 +41,7 @@ describe("Codex hook event privacy", () => {
     expect(event.promptLength).toBeGreaterThan(0);
     expect(event.hasScopeWords).toBe(true);
     expect(event.hasAcceptanceCriteria).toBe(true);
+    expect(event.promptSummary).toBe("首页");
     expect(JSON.stringify(event)).not.toContain("只修改首页");
   });
 });
@@ -96,7 +97,7 @@ describe("Codex hook event store and installer", () => {
           hookEventName: "UserPromptSubmit",
           sessionId: "s1",
           cwd: dir,
-          prompt: "不要保存这段完整 prompt，只记录长度。",
+          prompt: "做一个 content 离谱 MVP 雷达，针对功能整改，不要保存这段完整 prompt。",
         }),
       });
       execFileSync(process.execPath, [result.hookPath], {
@@ -110,6 +111,7 @@ describe("Codex hook event store and installer", () => {
 
       const content = readFileSync(logPath, "utf8");
       expect(content).toContain("UserPromptSubmit");
+      expect(content).toContain("content 离谱 MVP 雷达");
       expect(content).not.toContain("不要保存这段完整 prompt");
       expect(content).not.toContain("abc123");
     } finally {
