@@ -74,7 +74,31 @@ describe("session narrative", () => {
     });
 
     expect(narrative.projectName).toBe("未记录项目");
-    expect(narrative.goal).toBe("未记录任务主题");
-    expect(narrative.items).toEqual(["未记录有效整改方向"]);
+    expect(narrative.goal).toBe("没有记录任务主题（未捕获到可展示的用户目标）");
+    expect(narrative.items).toEqual(["不计成长：没有文件变化、成功命令或提交。"]);
+  });
+
+  it("explains generic working directories instead of treating Documents as a project", () => {
+    const narrative = buildSessionNarrative({
+      ...baseSession,
+      taskGoal: "Codex 全局历史使用过程（仅保存元数据，不保存完整 prompt）",
+      projectPath: "/Users/wangdingwen/Documents",
+      changedFilesCount: 0,
+      addedFilesCount: 0,
+      modifiedFilesCount: 0,
+      commandsRun: [],
+      successfulCommands: 1,
+      buildSuccess: true,
+      testSuccess: false,
+      gitCommitCreated: false,
+      status: "inactive",
+      score: 0,
+    });
+
+    expect(narrative.projectName).toBe("未识别项目（Documents）");
+    expect(narrative.goal).toBe("没有记录任务主题（未捕获到可展示的用户目标）");
+    expect(narrative.items).toContain("项目来源：Codex 在 Documents 目录启动，这不是具体项目。");
+    expect(narrative.items).toContain("不计成长：只检测到验证命令，没有项目文件变化。");
+    expect(narrative.items.join(" ")).not.toContain("结果：已留下可验证结果");
   });
 });

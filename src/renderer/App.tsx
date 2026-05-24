@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import { buildAbilityReportPresentation } from "../shared/abilityReportPresentation";
 import {
   emptyGithubSkillRecommendations,
   normalizeGithubSkillRecommendations,
@@ -497,36 +498,20 @@ function ReportSummary({
   report: WeeklyReport | null;
   empty: string;
 }) {
-  if (!report) {
-    return (
-      <div className="report-summary-card">
-        <strong>{label}</strong>
-        <p className="muted">{empty}</p>
-      </div>
-    );
-  }
-
-  if (!hasRealReportInsights(report)) {
-    return (
-      <div className="report-summary-card">
-        <strong>{label}</strong>
-        <p className="muted">这份报告没有真实习惯分析字段。等待下一次日报或周报生成后再展示。</p>
-      </div>
-    );
-  }
+  const presentation = buildAbilityReportPresentation(label, report, empty);
 
   return (
-    <div className="report-summary-card">
+    <div className={`report-summary-card report-state-${presentation.state}`}>
       <div className="report-card-heading">
         <strong>{label}</strong>
-        <span>{trendText(report.trend)}</span>
+        {report ? <span>{trendText(report.trend)}</span> : <span>未生成</span>}
       </div>
       <div className="report-insight-list">
-        <ReportInsight label="使用习惯" text={report.habitSummary} />
-        <ReportInsight label="优化方向" text={report.optimizationAdvice} />
-        <ReportInsight label="下一次练习" text={report.nextPractice} />
+        {presentation.rows.map((row) => (
+          <ReportInsight key={row.label} label={row.label} text={row.text} />
+        ))}
       </div>
-      <p className="report-note">{report.summary}</p>
+      <p className="report-note">{presentation.note}</p>
     </div>
   );
 }
@@ -596,11 +581,11 @@ function desktopPetBadge(snapshot: AppSnapshot): string {
 
 function statusLabel(status: string) {
   const labels: Record<string, string> = {
-    inactive: "inactive",
-    unverified: "unverified",
-    working: "working",
-    delivered: "delivered",
-    breakthrough: "breakthrough",
+    inactive: "未计成长",
+    unverified: "已改未验证",
+    working: "有工作痕迹",
+    delivered: "已交付",
+    breakthrough: "新能力交付",
   };
   return labels[status] ?? status;
 }
