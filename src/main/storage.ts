@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type {
   CodexSessionRecord,
+  GithubSkillRecommendationSnapshot,
   GrowthArchetype,
   PetState,
   ProjectRecord,
@@ -9,6 +10,7 @@ import type {
   WeeklyReport,
 } from "../shared/types";
 import { stageForPurification } from "../shared/rules";
+import { defaultGithubSkillRecommendationSnapshot } from "./githubSkillRecommendations";
 
 interface StoreShape {
   projects: ProjectRecord[];
@@ -16,6 +18,7 @@ interface StoreShape {
   skills: SkillRecord[];
   pet_state: PetState;
   weekly_reports: WeeklyReport[];
+  github_skill_recommendations: GithubSkillRecommendationSnapshot;
 }
 
 const defaultPetState: PetState = {
@@ -44,6 +47,7 @@ export class JsonStore {
       skills: path.join(this.rootDir, "skills.json"),
       pet_state: path.join(this.rootDir, "pet_state.json"),
       weekly_reports: path.join(this.rootDir, "weekly_reports.json"),
+      github_skill_recommendations: path.join(this.rootDir, "github_skill_recommendations.json"),
     };
     this.ensureFiles();
   }
@@ -111,12 +115,24 @@ export class JsonStore {
     this.write("weekly_reports", reports);
   }
 
+  getGithubSkillRecommendations(): GithubSkillRecommendationSnapshot {
+    return {
+      ...defaultGithubSkillRecommendationSnapshot,
+      ...this.read("github_skill_recommendations"),
+    };
+  }
+
+  saveGithubSkillRecommendations(snapshot: GithubSkillRecommendationSnapshot) {
+    this.write("github_skill_recommendations", snapshot);
+  }
+
   resetAll() {
     this.write("projects", []);
     this.write("codex_sessions", []);
     this.write("skills", []);
     this.write("pet_state", defaultPetState);
     this.write("weekly_reports", []);
+    this.write("github_skill_recommendations", defaultGithubSkillRecommendationSnapshot);
   }
 
   private ensureFiles() {
@@ -125,6 +141,7 @@ export class JsonStore {
     this.ensureFile("skills", []);
     this.ensureFile("pet_state", defaultPetState);
     this.ensureFile("weekly_reports", []);
+    this.ensureFile("github_skill_recommendations", defaultGithubSkillRecommendationSnapshot);
   }
 
   private ensureFile<K extends keyof StoreShape>(key: K, value: StoreShape[K]) {

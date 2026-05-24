@@ -9,6 +9,7 @@ import { getAllowedCommands, runAllowedCommand } from "./commandRunner";
 import { captureCodexBaseline } from "./codexBaseline";
 import { CodexLinkAdapter, convertHookEventsToEvidence } from "./adapters/codexLinkAdapter";
 import { normalizeObserverSummary } from "./codex/observerSummary";
+import { buildGithubSkillRecommendations } from "./githubSkillRecommendations";
 import {
   diffSnapshots,
   changedSnapshotPaths,
@@ -93,6 +94,7 @@ export class SessionManager {
       skills: this.store.getSkills(),
       petState,
       weeklyReports: this.store.getWeeklyReports(),
+      githubSkillRecommendations: this.store.getGithubSkillRecommendations(),
       activeSession,
       codexLink: null,
     };
@@ -404,6 +406,7 @@ export class SessionManager {
       projectPath: null,
     });
     this.applyCodexBaseline(baseline);
+    await this.refreshGithubSkillRecommendations();
     const status = await this.codexLinkAdapter.getStatus(null);
     const recentEvents = events.slice(0, 50);
     if (imported.count > 0 || imported.reward.exp > 0 || imported.reward.purification > 0) {
@@ -423,6 +426,13 @@ export class SessionManager {
       status,
       events: recentEvents,
     };
+  }
+
+  private async refreshGithubSkillRecommendations() {
+    const snapshot = await buildGithubSkillRecommendations({
+      previous: this.store.getGithubSkillRecommendations(),
+    });
+    this.store.saveGithubSkillRecommendations(snapshot);
   }
 
   async getCodexHookEvents(limit = 20): Promise<{

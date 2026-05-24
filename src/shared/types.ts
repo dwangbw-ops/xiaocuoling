@@ -224,6 +224,32 @@ export interface WeeklyReport {
   nextPractice: string;
 }
 
+export interface GithubSkillRecommendation {
+  fullName: string;
+  htmlUrl: string;
+  description: string;
+  stars: number;
+  forks: number;
+  openIssues: number;
+  pushedAt: string;
+  createdAt: string;
+  language: string;
+  topics: string[];
+  retrievedAt: string;
+  previousStars: number | null;
+  starGainSinceLastScan: number | null;
+  recommendationReason: string;
+}
+
+export interface GithubSkillRecommendationSnapshot {
+  fetchedAt: string | null;
+  source: "github-api";
+  query: string;
+  minStars: number;
+  recommendations: GithubSkillRecommendation[];
+  error: string | null;
+}
+
 export type CodexHookEventName =
   | "SessionStart"
   | "UserPromptSubmit"
@@ -306,6 +332,7 @@ export interface AppSnapshot {
   skills: SkillRecord[];
   petState: PetState;
   weeklyReports: WeeklyReport[];
+  githubSkillRecommendations: GithubSkillRecommendationSnapshot;
   activeSession: CodexSessionRecord | null;
   codexLink: CodexLinkStatus | null;
 }

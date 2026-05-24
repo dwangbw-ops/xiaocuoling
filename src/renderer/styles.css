@@ -690,6 +690,10 @@ h2 {
   padding-bottom: 28px;
 }
 
+.timeline-panel {
+  grid-column: 1 / -1;
+}
+
 .info-panel {
   min-height: 260px;
   padding: 16px;
@@ -737,6 +741,42 @@ h2 {
   gap: 5px;
   margin: 8px 0;
   padding-left: 18px;
+  color: #d4d4d8;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.github-recommend-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.github-recommend-list li {
+  border: 1px solid rgba(63, 63, 70, 0.74);
+  border-radius: 12px;
+  background: rgba(12, 13, 18, 0.38);
+  padding: 10px 12px;
+}
+
+.github-recommend-list a {
+  color: #c4b5fd;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.github-recommend-list span,
+.github-recommend-list small {
+  display: block;
+  margin-top: 5px;
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.github-recommend-list p {
+  margin: 7px 0 0;
   color: #d4d4d8;
   font-size: 12px;
   line-height: 1.45;

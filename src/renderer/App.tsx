@@ -57,6 +57,14 @@ const emptySnapshot: AppSnapshot = {
     codexBaseline: null,
   },
   weeklyReports: [],
+  githubSkillRecommendations: {
+    fetchedAt: null,
+    source: "github-api",
+    query: "",
+    minStars: 1000,
+    recommendations: [],
+    error: null,
+  },
   activeSession: null,
   codexLink: null,
 };
@@ -227,6 +235,7 @@ function MainPanel({
 
       <section className="detail-grid">
         <AbilityReportsBlock reports={hasRealSessions ? snapshot.weeklyReports : []} />
+        <GithubSkillRecommendationsBlock snapshot={snapshot} />
         <Timeline sessions={snapshot.sessions} />
       </section>
     </main>
@@ -327,7 +336,7 @@ function Metric({
 function Timeline({ sessions }: { sessions: CodexSessionRecord[] }) {
   const completed = sessions.filter((session) => session.endTime).slice(0, 8);
   return (
-    <section className="info-panel">
+    <section className="info-panel timeline-panel">
       <h2>最近 Codex 使用记录</h2>
       {completed.length ? (
         <ol className="timeline">
@@ -375,6 +384,46 @@ function AbilityReportsBlock({ reports }: { reports: WeeklyReport[] }) {
       ) : (
         <p className="muted">暂无数据。日报会在每天晚上生成，周报会在周末晚上生成。</p>
       )}
+    </section>
+  );
+}
+
+function GithubSkillRecommendationsBlock({ snapshot }: { snapshot: AppSnapshot }) {
+  const github = snapshot.githubSkillRecommendations;
+  return (
+    <section className="info-panel github-recommend-panel">
+      <h2>GitHub Skill 推荐</h2>
+      {github.error ? <p className="muted">GitHub API 获取失败：{github.error}</p> : null}
+      {!github.error && !github.fetchedAt ? (
+        <p className="muted">点击读取后，从 GitHub API 获取真实推荐。</p>
+      ) : null}
+      {!github.error && github.fetchedAt && !github.recommendations.length ? (
+        <p className="muted">这次 GitHub API 没有返回符合条件的 Skill 仓库。</p>
+      ) : null}
+      {github.recommendations.length ? (
+        <ul className="github-recommend-list">
+          {github.recommendations.map((item) => (
+            <li key={item.fullName}>
+              <a href={item.htmlUrl} target="_blank" rel="noreferrer">
+                {item.fullName}
+              </a>
+              <span>
+                {item.stars.toLocaleString()} stars
+                {item.starGainSinceLastScan === null
+                  ? " · 暂无增长基线"
+                  : ` · +${item.starGainSinceLastScan} stars`}
+              </span>
+              <p>{item.description || "GitHub API 未返回描述。"}</p>
+              <small>最近更新 {item.pushedAt ? new Date(item.pushedAt).toLocaleDateString() : "未记录"}</small>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {github.fetchedAt ? (
+        <p className="report-note">
+          来源 GitHub API · 阈值 {github.minStars}+ stars · {new Date(github.fetchedAt).toLocaleString()}
+        </p>
+      ) : null}
     </section>
   );
 }
