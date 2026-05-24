@@ -109,6 +109,9 @@ function registerIpc() {
   ipcMain.handle("codex-link:connect-global", async () =>
     manager.connectCodexGlobally(),
   );
+  ipcMain.handle("github-skills:refresh", async () =>
+    manager.refreshGithubSkillRecommendations(),
+  );
   ipcMain.handle("codex-link:events", async (_event, limit?: number) =>
     manager.getCodexHookEvents(limit),
   );

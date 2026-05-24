@@ -4,7 +4,9 @@ import "./styles.css";
 import {
   emptyGithubSkillRecommendations,
   normalizeGithubSkillRecommendations,
+  shouldAutoFetchGithubRecommendations,
 } from "../shared/githubRecommendationView";
+import { buildGithubSkillRecommendations } from "../shared/githubSkillRecommendationSearch";
 import { buildSessionNarrative } from "../shared/sessionNarrative";
 import {
   buildToyGrowthPresentation,
@@ -78,6 +80,12 @@ const browserUnavailableApi: XiaocuolingApi = {
   calibrateFromCodex: requireDesktopRuntime,
   getCodexLinkStatus: requireDesktopRuntime,
   connectCodexGlobal: requireDesktopRuntime,
+  refreshGithubSkillRecommendations: async () => ({
+    ...emptySnapshot,
+    githubSkillRecommendations: await buildGithubSkillRecommendations({
+      previous: emptyGithubSkillRecommendations,
+    }),
+  }),
   installCodexHooks: requireDesktopRuntime,
   getCodexHookEvents: async () => ({
     events: [],
@@ -97,10 +105,36 @@ function App() {
   const view = new URLSearchParams(window.location.search).get("view") ?? "panel";
 
   useEffect(() => {
+    let disposed = false;
     document.body.dataset.view = view;
     document.documentElement.dataset.view = view;
-    xiaocuoling.getState().then(setSnapshot);
-    return xiaocuoling.onStateUpdated(setSnapshot);
+    const unsubscribe = xiaocuoling.onStateUpdated(setSnapshot);
+    xiaocuoling.getState().then((nextSnapshot) => {
+      if (disposed) return;
+      setSnapshot(nextSnapshot);
+      if (view === "panel" && shouldAutoFetchGithubRecommendations(nextSnapshot.githubSkillRecommendations)) {
+        xiaocuoling.refreshGithubSkillRecommendations()
+          .then((refreshedSnapshot) => {
+            if (!disposed) setSnapshot(refreshedSnapshot);
+          })
+          .catch((caught) => {
+            if (disposed) return;
+            setSnapshot((current) => ({
+              ...current,
+              githubSkillRecommendations: {
+                ...normalizeGithubSkillRecommendations(current.githubSkillRecommendations),
+                fetchedAt: new Date().toISOString(),
+                recommendations: [],
+                error: userFacingError(caught),
+              },
+            }));
+          });
+      }
+    });
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
   }, [view]);
 
   if (view === "pet") {
@@ -421,7 +455,7 @@ function GithubSkillRecommendationsBlock({ snapshot }: { snapshot: AppSnapshot }
       <h2>GitHub Skill 推荐</h2>
       {github.error ? <p className="muted">GitHub API 获取失败：{github.error}</p> : null}
       {!github.error && !github.fetchedAt ? (
-        <p className="muted">点击读取后，从 GitHub API 获取真实推荐。</p>
+        <p className="muted">正在从 GitHub API 查找真实 Skill 推荐...</p>
       ) : null}
       {!github.error && github.fetchedAt && !github.recommendations.length ? (
         <p className="muted">这次 GitHub API 没有返回符合条件的 Skill 仓库。</p>

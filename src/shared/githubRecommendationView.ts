@@ -21,3 +21,10 @@ export function normalizeGithubSkillRecommendations(
     error: typeof snapshot?.error === "string" ? snapshot.error : null,
   };
 }
+
+export function shouldAutoFetchGithubRecommendations(
+  snapshot: GithubSkillRecommendationSnapshot | null | undefined,
+): boolean {
+  const normalized = normalizeGithubSkillRecommendations(snapshot);
+  return !normalized.fetchedAt && !normalized.error;
+}

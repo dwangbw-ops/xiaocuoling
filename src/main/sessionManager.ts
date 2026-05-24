@@ -428,11 +428,13 @@ export class SessionManager {
     };
   }
 
-  private async refreshGithubSkillRecommendations() {
+  async refreshGithubSkillRecommendations(): Promise<AppSnapshot> {
     const snapshot = await buildGithubSkillRecommendations({
       previous: this.store.getGithubSkillRecommendations(),
     });
     this.store.saveGithubSkillRecommendations(snapshot);
+    this.broadcast();
+    return this.getSnapshot();
   }
 
   async getCodexHookEvents(limit = 20): Promise<{

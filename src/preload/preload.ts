@@ -20,6 +20,7 @@ export interface XiaocuolingApi {
     status: CodexLinkStatus;
     events: CodexHookEvent[];
   }>;
+  refreshGithubSkillRecommendations: () => Promise<AppSnapshot>;
   installCodexHooks: (projectId: string) => Promise<CodexLinkStatus>;
   getCodexHookEvents: (limit?: number) => Promise<{
     events: CodexHookEvent[];
@@ -46,6 +47,7 @@ const api: XiaocuolingApi = {
   calibrateFromCodex: (projectId) => ipcRenderer.invoke("codex:calibrate-baseline", projectId),
   getCodexLinkStatus: (projectId) => ipcRenderer.invoke("codex-link:status", projectId),
   connectCodexGlobal: () => ipcRenderer.invoke("codex-link:connect-global"),
+  refreshGithubSkillRecommendations: () => ipcRenderer.invoke("github-skills:refresh"),
   installCodexHooks: (projectId) =>
     ipcRenderer.invoke("codex-link:install-hooks", projectId),
   getCodexHookEvents: (limit) => ipcRenderer.invoke("codex-link:events", limit),
