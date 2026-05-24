@@ -29,5 +29,8 @@ describe("project safety guard", () => {
     expect(renderer).not.toContain("fallbackHabitSummary");
     expect(renderer).not.toContain("fallbackOptimizationAdvice");
     expect(renderer).not.toContain("fallbackNextPractice");
+    expect(renderer).not.toContain("检测到工具 ≠ 掌握工具");
+    expect(renderer).not.toContain("打开 Codex ≠ 有效成长");
+    expect(renderer).not.toContain("工具入口不等于能力");
   });
 });

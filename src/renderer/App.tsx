@@ -1,18 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-import { buildCapabilitySections } from "../shared/capabilityDisplay";
-import { codexConnectionPrimaryAction } from "../shared/codexConnectionUi";
 import { visualStageForPet } from "../shared/petPresentation";
+import { buildSessionNarrative } from "../shared/sessionNarrative";
 import type {
   AppSnapshot,
   CodexEventEvidence,
-  CodexHookEvent,
-  CodexLinkStatus,
   CodexSessionRecord,
   GrowthArchetype,
   PetStage,
-  SkillRecord,
   WeeklyReport,
 } from "../shared/types";
 import type { XiaocuolingApi } from "../preload/preload";
@@ -73,8 +69,6 @@ const commandShortcuts = [
   "git diff --stat",
   "git log --oneline -5",
 ];
-
-type ToolLibraryTab = "skills" | "plugins" | "mcp" | "events" | "github";
 
 const emptyCodexEvidence: CodexEventEvidence = {
   sessionStarted: false,
@@ -162,64 +156,17 @@ function MainPanel({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [codexLinkStatus, setCodexLinkStatus] = useState<CodexLinkStatus | null>(
-    snapshot.codexLink,
-  );
-  const [codexEvents, setCodexEvents] = useState<CodexHookEvent[]>([]);
-  const [codexConnectionMessage, setCodexConnectionMessage] = useState("");
-  const [toolLibraryOpen, setToolLibraryOpen] = useState(false);
-  const [toolLibraryTab, setToolLibraryTab] = useState<ToolLibraryTab>("skills");
   const latestSession = snapshot.sessions.find((session) => session.endTime);
-  const latestWeeklyReport =
-    snapshot.weeklyReports.find((report) => (report.period ?? "weekly") === "weekly") ?? null;
-
-  useEffect(() => {
-    let ignore = false;
-    xiaocuoling
-      .getCodexLinkStatus()
-      .then((status) => {
-        if (!ignore) setCodexLinkStatus(status);
-      })
-      .catch(() => undefined);
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const latestReport = snapshot.weeklyReports.find((report) => report.period === "daily")
+    ?? snapshot.weeklyReports.find((report) => (report.period ?? "weekly") === "weekly")
+    ?? null;
 
   const completedSessions = snapshot.sessions.filter((session) => session.endTime);
   const hasRealSessions = completedSessions.length > 0;
   const nextStage = nextStageInfo(snapshot.petState.purificationScore);
   const visualStage = visualStageForPet(snapshot.petState, snapshot.sessions);
-  const codexBaseScore = snapshot.petState.codexBaseline?.aiCapabilityScore ?? "未读取";
   const growthScore = hasRealSessions ? snapshot.petState.aiCapabilityScore : "暂无";
-  const weekTrend = hasRealSessions && latestWeeklyReport ? trendLabel(latestWeeklyReport.trend) : "暂无数据";
-
-  const runAction = async (label: string, action: () => Promise<AppSnapshot>) => {
-    setBusy(label);
-    setError("");
-    try {
-      onSnapshot(await action());
-    } catch (caught) {
-      setError(userFacingError(caught));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleViewCodexEvents = async () => {
-    setBusy("codex-events");
-    setError("");
-    try {
-      const result = await xiaocuoling.getCodexHookEvents(20);
-      setCodexEvents(result.events);
-      setCodexConnectionMessage(feedbackForCodexEvidence(result.events[0], result.evidence));
-      setCodexLinkStatus(await xiaocuoling.getCodexLinkStatus());
-    } catch (caught) {
-      setError(userFacingError(caught));
-    } finally {
-      setBusy(null);
-    }
-  };
+  const weekTrend = hasRealSessions && latestReport ? trendLabel(latestReport.trend) : "暂无数据";
 
   const handleOneClickCodexConnect = async () => {
     setBusy("codex-connect-all");
@@ -227,12 +174,6 @@ function MainPanel({
     try {
       const result = await xiaocuoling.connectCodexGlobal();
       onSnapshot(result.snapshot);
-      setCodexLinkStatus(result.status);
-      setCodexEvents(result.events);
-      setCodexConnectionMessage(
-        result.status.capabilityAnalysis?.summary ??
-          "已读取本机 Codex 使用过程，安装全局捕获脚本，并刷新事件库。",
-      );
     } catch (caught) {
       setError(userFacingError(caught));
     } finally {
@@ -247,24 +188,6 @@ function MainPanel({
           <p className="eyebrow">小搓灵 · Codex 能力成长宠物</p>
           <h1>你的 Codex 成长镜像</h1>
         </div>
-        <div className="topbar-actions">
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={busy !== null}
-            onClick={() => setToolLibraryOpen(true)}
-          >
-            设置
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={busy !== null}
-            onClick={() => runAction("reset", () => xiaocuoling.resetData())}
-          >
-            重置数据
-          </button>
-        </div>
       </header>
 
       <section className="overview-grid">
@@ -277,7 +200,7 @@ function MainPanel({
             <h2>{petDisplayName(visualStage, snapshot.petState.archetype)}</h2>
             <p className="stage-line">{archetypeLabel[snapshot.petState.archetype]}</p>
             <p className="feedback-line">
-              {petFeedbackLine(snapshot, latestSession, codexLinkStatus)}
+              {latestSession?.feedback ?? snapshot.petState.currentMood}
             </p>
             <div className="progress-row">
               <span>净化值 {Math.round(snapshot.petState.purificationScore)}</span>
@@ -286,410 +209,46 @@ function MainPanel({
             <div className="progress-track">
               <div style={{ width: `${nextStage?.progress ?? 100}%` }} />
             </div>
-            <p className="microcopy">净化值只根据真实 Session、运行验证、交付闭环和持续进步缓慢增加。</p>
-            <div className="today-suggestion">
-              <span>今日建议</span>
-              <strong>{todaySuggestion(snapshot, codexLinkStatus)}</strong>
-            </div>
           </div>
         </div>
 
         <div className="score-grid compact-score-grid">
-          <Metric
-            label="Codex 基础分"
-            value={codexBaseScore}
-            hint="来自本地 Codex 环境、工具配置和项目环境，只代表基础条件。"
-          />
-          <Metric
-            label="小搓灵成长分"
-            value={growthScore}
-            hint="来自真实 Session、运行验证、交付闭环和持续进步。"
-          />
-          <Metric
-            label="净化值"
-            value={Math.round(snapshot.petState.purificationScore)}
-            hint="只根据真实成长缓慢增加。"
-          />
-          <Metric label="本周趋势" value={weekTrend} hint="没有真实 session 时不判定停滞。" />
+          <Metric label="当前等级" value={stageLabel[visualStage]} />
+          <Metric label="AI 使用能力" value={growthScore} />
+          <Metric label="净化值" value={Math.round(snapshot.petState.purificationScore)} />
+          <Metric label="趋势" value={weekTrend} />
         </div>
       </section>
 
-      <section className="truth-strip" aria-label="成长规则">
-        <span>检测到工具 ≠ 掌握工具</span>
-        <span>打开 Codex ≠ 有效成长</span>
-        <span>交付成功，才会净化</span>
-      </section>
-
-      <section className="session-console">
+      <section className="read-console">
         {error ? <p className="error-line">{error}</p> : null}
-        <CodexConnectionPanel
-          status={codexLinkStatus}
-          latestEffectiveSession={completedSessions.find((session) =>
-            ["working", "delivered", "breakthrough"].includes(session.status),
-          )}
-          events={codexEvents}
-          message={codexConnectionMessage}
-          busy={busy}
-          onConnectAll={handleOneClickCodexConnect}
-        />
+        <ReadCodexButton busy={busy} onConnectAll={handleOneClickCodexConnect} />
       </section>
-
-      <ToolLibraryDrawer
-        open={toolLibraryOpen}
-        tab={toolLibraryTab}
-        onTabChange={(nextTab) => {
-          setToolLibraryTab(nextTab);
-          if (nextTab === "events") void handleViewCodexEvents();
-        }}
-        onClose={() => setToolLibraryOpen(false)}
-        snapshot={snapshot}
-        status={codexLinkStatus}
-        events={codexEvents}
-      />
 
       <section className="detail-grid">
-        <Timeline sessions={snapshot.sessions} />
-        <UsedToolsList snapshot={snapshot} />
         <AbilityReportsBlock reports={hasRealSessions ? snapshot.weeklyReports : []} />
+        <Timeline sessions={snapshot.sessions} />
       </section>
     </main>
   );
 }
 
-function CodexConnectionPanel({
-  status,
-  latestEffectiveSession,
-  events,
-  message,
+function ReadCodexButton({
   busy,
   onConnectAll,
 }: {
-  status: CodexLinkStatus | null;
-  latestEffectiveSession?: CodexSessionRecord;
-  events: CodexHookEvent[];
-  message: string;
   busy: string | null;
   onConnectAll: () => void;
 }) {
-  const action = codexConnectionPrimaryAction();
-
   return (
-    <section className="codex-link-card">
-      <div className="codex-link-head">
-        <div>
-          <p className="eyebrow">Codex 连接</p>
-          <h2>连接真实行为，不复制官方宠物</h2>
-        </div>
-        <span className="connection-pill">
-          当前连接方式：{status?.connectionMode === "hooks" ? "全局 Codex 记录" : "等待连接"}
-        </span>
-      </div>
-
-      <div className="codex-link-grid">
-        <StatusDot label="Codex CLI" active={Boolean(status?.codexCliDetected)} />
-        <StatusDot
-          label="全局捕获脚本"
-          active={Boolean(status?.projectHooksInstalled)}
-          activeText="已安装"
-          inactiveText="未安装"
-        />
-        <StatusDot
-          label="全局使用过程"
-          active={Boolean(status?.recentEventCount)}
-          activeText="已导入"
-          inactiveText="未导入"
-        />
-        <Metric label="最近 Codex 事件" value={status?.recentEventCount ?? 0} />
-        <Metric
-          label="最近 Codex Session"
-          value={status?.latestEventAt ? new Date(status.latestEventAt).toLocaleString() : "暂无"}
-        />
-      </div>
-
-      {status?.capabilityAnalysis ? (
-        <div className="capability-grid compact-capability-grid">
-          <Metric label="Codex 工具入口" value={status.capabilityAnalysis.inventory.totalSkills} />
-          <Metric label="Plugin / Skill 来源" value={status.capabilityAnalysis.inventory.pluginCount} />
-          <Metric label="MCP 配置" value={status.capabilityAnalysis.config.mcpServerNames.length} />
-          <Metric label="环境就绪度" value={`${status.capabilityAnalysis.readinessScore}/100`} />
-        </div>
-      ) : null}
-
-      <p className="privacy-note">
-        我不会读取 Codex 宠物，也不会复制它。我只观察你是否真的用 Codex 完成交付。
-      </p>
-      <p className="microcopy">
-        工具入口只代表环境可用，不代表你已经掌握。Codex 全局记录只是证据来源；文件变化、成功命令、build/test/commit 和交付闭环才会推动成长。
-      </p>
-
-      <div className="codex-link-actions single-action">
-        <button
-          className="connect-all-button"
-          type="button"
-          disabled={busy !== null}
-          onClick={onConnectAll}
-        >
-          {busy === "codex-connect-all" ? "正在连接..." : action.label}
-          <small>{action.description}</small>
-        </button>
-      </div>
-
-      <div className="codex-link-foot">
-        <span>{message || status?.privacyNotice || "尚未读取 Codex hook 事件。"}</span>
-        <span>
-          最近有效 Session：
-          {latestEffectiveSession?.endTime
-            ? new Date(latestEffectiveSession.endTime).toLocaleString()
-            : "暂无"}
-        </span>
-      </div>
-
-      {events.length ? (
-        <ol className="event-list">
-          {events.slice(0, 5).map((event) => (
-            <li key={event.eventId}>
-              <strong>{event.hookEventName}</strong>
-              <span>{event.toolName || event.commandSummary || event.sessionId || "metadata"}</span>
-            </li>
-          ))}
-        </ol>
-      ) : null}
-    </section>
-  );
-}
-
-function ToolLibraryDrawer({
-  open,
-  tab,
-  onTabChange,
-  onClose,
-  snapshot,
-  status,
-  events,
-}: {
-  open: boolean;
-  tab: ToolLibraryTab;
-  onTabChange: (tab: ToolLibraryTab) => void;
-  onClose: () => void;
-  snapshot: AppSnapshot;
-  status: CodexLinkStatus | null;
-  events: CodexHookEvent[];
-}) {
-  const analysis =
-    status?.capabilityAnalysis ?? snapshot.petState.codexBaseline?.capabilityAnalysis ?? null;
-  const sections = analysis ? buildCapabilitySections(analysis) : [];
-  const tabs: Array<{ id: ToolLibraryTab; label: string }> = [
-    { id: "skills", label: "Skills" },
-    { id: "plugins", label: "Plugins" },
-    { id: "mcp", label: "MCP" },
-    { id: "events", label: "Hooks Events" },
-    { id: "github", label: "GitHub 质量" },
-  ];
-
-  if (!open) return null;
-
-  return (
-    <div className="tool-drawer-backdrop" role="presentation" onMouseDown={onClose}>
-      <aside
-        className="tool-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Codex 工具库"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="tool-drawer-head">
-          <div>
-            <p className="eyebrow">Codex 工具库</p>
-            <h2>工具入口不等于能力</h2>
-          </div>
-          <button type="button" onClick={onClose}>
-            关闭
-          </button>
-        </header>
-        <p className="microcopy drawer-copy">
-          这里展示本机可观察的 Codex 工具入口。是否真正掌握，只看真实 Session、运行验证和交付闭环。
-        </p>
-
-        <nav className="tool-tabs" aria-label="Codex 工具库分类">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={tab === item.id ? "active" : ""}
-              onClick={() => onTabChange(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        {tab === "skills" ? (
-          <ToolRows
-            rows={[
-              ...toolRowsFromSection("自定义 Skill", sections.find((s) => s.title === "自定义 Skills")?.items ?? [], snapshot.skills),
-              ...toolRowsFromSection("插件 Skill", sections.find((s) => s.title === "插件 Skills")?.items ?? [], snapshot.skills),
-              ...toolRowsFromSection("系统 Skill", sections.find((s) => s.title === "系统 Skills")?.items ?? [], snapshot.skills),
-            ]}
-          />
-        ) : null}
-
-        {tab === "plugins" ? (
-          <ToolRows
-            rows={toolRowsFromSection(
-              "Plugin",
-              sections.find((section) => section.title === "Plugin / Skill 来源")?.items ?? [],
-              snapshot.skills,
-            )}
-          />
-        ) : null}
-
-        {tab === "mcp" ? (
-          <ToolRows
-            rows={toolRowsFromSection(
-              "MCP",
-              sections.find((section) => section.title === "MCP 配置")?.items ?? [],
-              snapshot.skills,
-            )}
-          />
-        ) : null}
-
-        {tab === "events" ? (
-          <div className="drawer-list">
-            {events.length ? (
-              events.slice(0, 30).map((event) => (
-                <div key={event.eventId} className="drawer-row">
-                  <span>{event.hookEventName}</span>
-                  <strong>{event.toolName || event.commandSummary || event.sessionId || "metadata"}</strong>
-                  <small>
-                    {event.timestamp ? new Date(event.timestamp).toLocaleString() : "暂无时间"} ·{" "}
-                    {event.success === undefined ? "元数据" : event.success ? "成功" : "失败"}
-                  </small>
-                </div>
-              ))
-            ) : (
-              <p className="muted">暂无 hook 事件。连接 Codex Hooks 后，事件会写入本机 JSONL。</p>
-            )}
-          </div>
-        ) : null}
-
-        {tab === "github" ? (
-          <div className="drawer-list">
-            {snapshot.skills.length ? (
-              snapshot.skills.map((skill) => (
-                <div key={skill.skillId} className="drawer-row">
-                  <span>{skill.name}</span>
-                  <strong>{skill.qualityScore ?? "未评估"}</strong>
-                  <small>
-                    Stars {skill.qualityEvidence.stars} · Forks {skill.qualityEvidence.forks} ·{" "}
-                    License {skill.qualityEvidence.hasLicense ? "有" : "未检测"}
-                  </small>
-                </div>
-              ))
-            ) : (
-              <p className="muted">暂无 GitHub 质量评估。质量分只代表工具可信度，不影响宠物阶段。</p>
-            )}
-          </div>
-        ) : null}
-      </aside>
-    </div>
-  );
-}
-
-function ToolRows({
-  rows,
-}: {
-  rows: Array<{
-    name: string;
-    source: string;
-    enabled: boolean;
-    used: boolean;
-    deliveredCount: number;
-    breakthroughCount: number;
-    qualityScore: string | number;
-    lastUsedAt: string;
-  }>;
-}) {
-  if (!rows.length) {
-    return <p className="muted drawer-empty">暂无可展示工具入口。</p>;
-  }
-
-  return (
-    <div className="tool-table">
-      <div className="tool-table-head">
-        <span>名称</span>
-        <span>来源</span>
-        <span>启用</span>
-        <span>真实使用</span>
-        <span>交付</span>
-        <span>突破</span>
-        <span>质量</span>
-        <span>最近使用</span>
-      </div>
-      {rows.map((row) => (
-        <div className="tool-table-row" key={`${row.source}-${row.name}`}>
-          <strong>{row.name}</strong>
-          <span>{row.source}</span>
-          <span>{row.enabled ? "是" : "否"}</span>
-          <span>{row.used ? "是" : "否"}</span>
-          <span>{row.deliveredCount}</span>
-          <span>{row.breakthroughCount}</span>
-          <span>{row.qualityScore}</span>
-          <span>{row.lastUsedAt}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function toolRowsFromSection(
-  source: string,
-  names: string[],
-  skills: SkillRecord[],
-) {
-  return names.map((name) => {
-    const skill = findSkillByName(skills, name);
-    return {
-      name,
-      source,
-      enabled: true,
-      used: Boolean(skill && (skill.usageScore > 0 || skill.deliveredCount > 0)),
-      deliveredCount: skill?.deliveredCount ?? 0,
-      breakthroughCount: skill?.breakthroughCount ?? 0,
-      qualityScore: skill?.qualityScore ?? "未评估",
-      lastUsedAt: skill?.lastUsedAt ? new Date(skill.lastUsedAt).toLocaleString() : "暂无",
-    };
-  });
-}
-
-function findSkillByName(skills: SkillRecord[], name: string): SkillRecord | undefined {
-  const normalized = name.toLowerCase();
-  return skills.find(
-    (skill) =>
-      skill.name.toLowerCase() === normalized ||
-      skill.skillId.toLowerCase() === normalized ||
-      normalized.includes(skill.skillId.toLowerCase()),
-  );
-}
-
-function StatusDot({
-  label,
-  active,
-  activeText = "已检测",
-  inactiveText = "未检测",
-}: {
-  label: string;
-  active: boolean;
-  activeText?: string;
-  inactiveText?: string;
-}) {
-  return (
-    <div className="status-dot-row">
-      <span className={active ? "dot active" : "dot"} />
-      <div>
-        <small>{label}</small>
-        <strong>{active ? activeText : inactiveText}</strong>
-      </div>
-    </div>
+    <button
+      className="connect-all-button minimal-read-button"
+      type="button"
+      disabled={busy !== null}
+      onClick={onConnectAll}
+    >
+      {busy === "codex-connect-all" ? "正在读取..." : "读取全部 Codex 使用过程"}
+    </button>
   );
 }
 
@@ -769,59 +328,33 @@ function Timeline({ sessions }: { sessions: CodexSessionRecord[] }) {
   const completed = sessions.filter((session) => session.endTime).slice(0, 8);
   return (
     <section className="info-panel">
-      <h2>最近 Session 时间线</h2>
+      <h2>最近 Codex 使用记录</h2>
       {completed.length ? (
         <ol className="timeline">
-          {completed.map((session) => (
-            <li key={session.sessionId}>
-              <strong>{statusLabel(session.status)}</strong>
-              <span>{new Date(session.endTime as string).toLocaleString()}</span>
-              <p>{session.feedback}</p>
-              <small>
-                文件 {session.changedFilesCount} · 成功命令 {session.successfulCommands} · 分数 +{session.score}
-              </small>
-            </li>
-          ))}
+          {completed.map((session) => {
+            const narrative = buildSessionNarrative(session);
+            return (
+              <li key={session.sessionId}>
+                <div className="timeline-heading">
+                  <strong>{narrative.projectName}</strong>
+                  <span>{new Date(session.endTime as string).toLocaleString()}</span>
+                </div>
+                <p>{narrative.goal}</p>
+                <ul className="timeline-work-list">
+                  {narrative.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+                <small>
+                  状态 {statusLabel(session.status)} · 得分 +{session.score}
+                </small>
+              </li>
+            );
+          })}
         </ol>
       ) : (
-        <p className="muted">还没有完成的 Codex Session。</p>
+        <p className="muted">还没有真实 Codex 使用记录。</p>
       )}
-    </section>
-  );
-}
-
-function UsedToolsList({ snapshot }: { snapshot: AppSnapshot }) {
-  const usedSkills = snapshot.skills
-    .filter(
-      (skill) =>
-        skill.usageScore > 0 ||
-        skill.deliveredCount > 0 ||
-        skill.breakthroughCount > 0,
-    )
-    .slice(0, 5);
-
-  return (
-    <section className="info-panel">
-      <h2>真实使用过的工具</h2>
-      {usedSkills.length ? (
-        <ul className="skill-list">
-          {usedSkills.map((skill) => (
-            <li key={skill.skillId}>
-              <div>
-                <span>{skill.name}</span>
-                <small>
-                  真实使用 {skill.usageScore} · 交付 {skill.deliveredCount} · 突破{" "}
-                  {skill.breakthroughCount}
-                </small>
-              </div>
-              <strong>Lv.{skill.level}</strong>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="muted">检测到工具入口，但还没有真实使用证据。</p>
-      )}
-      <p className="microcopy">工具质量不等于你的能力。只有它帮你完成交付，才算成长。</p>
     </section>
   );
 }
@@ -910,45 +443,6 @@ function trendText(trend: WeeklyReport["trend"]) {
   return "暂无明显变化";
 }
 
-function ScoreEvidenceCard({ snapshot }: { snapshot: AppSnapshot }) {
-  const completed = snapshot.sessions.filter((session) => session.endTime);
-  const effective = completed.filter((session) =>
-    ["working", "delivered", "breakthrough"].includes(session.status),
-  );
-  const delivered = completed.filter((session) =>
-    ["delivered", "breakthrough"].includes(session.status),
-  );
-  const breakthrough = completed.filter((session) => session.status === "breakthrough");
-  const inactive = completed.filter((session) => session.status === "inactive");
-  const verified = completed.filter((session) => session.buildSuccess || session.testSuccess);
-  const promptAverage = completed.length
-    ? Math.round(
-        completed.reduce((sum, session) => sum + session.promptClarityScore, 0) /
-          completed.length,
-      )
-    : 0;
-  const skillUsageCount = snapshot.skills.filter((skill) => skill.usageScore > 0).length;
-
-  return (
-    <section className="info-panel evidence-panel">
-      <h2>评分依据</h2>
-      <div className="evidence-grid">
-        <Metric label="有效 Session" value={effective.length} />
-        <Metric label="Delivered" value={delivered.length} />
-        <Metric label="Breakthrough" value={breakthrough.length} />
-        <Metric label="无效 Session" value={inactive.length} />
-        <Metric
-          label="Build/Test 成功率"
-          value={completed.length ? `${Math.round((verified.length / completed.length) * 100)}%` : "暂无"}
-        />
-        <Metric label="Prompt 清晰度" value={completed.length ? promptAverage : "暂无"} />
-        <Metric label="Skill 真实使用" value={skillUsageCount} />
-      </div>
-      <p className="microcopy">Codex 基础分 ≠ 成长分。工具质量只作参考，不会直接推进宠物阶段。</p>
-    </section>
-  );
-}
-
 function trendLabel(trend?: string) {
   if (trend === "up") return "上升";
   if (trend === "down") return "下降";
@@ -981,48 +475,6 @@ function petLevelForStage(stage: PetStage): number {
   return levels[stage];
 }
 
-function petFeedbackLine(
-  snapshot: AppSnapshot,
-  latestSession: CodexSessionRecord | undefined,
-  status: CodexLinkStatus | null,
-): string {
-  if (latestSession?.status === "breakthrough") {
-    return "这次真的学会了一个新动作。";
-  }
-  if (latestSession?.status === "delivered") {
-    return "这次有证据，但我只给一点净化。";
-  }
-  if (latestSession?.status === "unverified") {
-    return "Codex 改了东西，但你还没跑 build/test。";
-  }
-  if (latestSession?.status === "inactive") {
-    return "你和 Codex 聊了，但项目还没动。";
-  }
-  if (status?.projectHooksInstalled) {
-    return "我现在能听到 Codex 的动静了，但交付了我才会变强。";
-  }
-  const toolCount =
-    snapshot.petState.codexBaseline?.capabilityAnalysis?.inventory.totalSkills ??
-    snapshot.petState.codexBaseline?.customSkillCount ??
-    0;
-  if (!snapshot.sessions.some((session) => session.endTime) && toolCount > 10) {
-    return "工具库很大，但还没有变成你的能力。";
-  }
-  return latestSession?.feedback ?? "你有 Codex 基础，但我还没看到真实交付。";
-}
-
-function todaySuggestion(snapshot: AppSnapshot, status: CodexLinkStatus | null): string {
-  if (snapshot.activeSession) return "结束前至少跑一次 build 或 test，别只停在改文件。";
-  if (!status?.projectHooksInstalled && !status?.recentEventCount) {
-    return "一键连接全部 Codex 使用过程，让小搓灵先看到真实记录。";
-  }
-  const latestSession = snapshot.sessions.find((session) => session.endTime);
-  if (!latestSession) return "继续用 Codex 做真实改动，并留下 build/test/commit 证据。";
-  if (latestSession.status === "unverified") return "补跑 npm run build 或 npm test，把修改变成交付证据。";
-  if (latestSession.status === "inactive") return "让 Codex 修改一个真实文件，再运行验证命令。";
-  return "继续保持小范围目标，结束前留下验证或 commit。";
-}
-
 function petHoverLine(snapshot: AppSnapshot): string {
   if (!snapshot.sessions.some((session) => session.endTime) && snapshot.petState.codexBaseline) {
     return "已读取 Codex 基础镜像。";
@@ -1034,28 +486,6 @@ function petHoverLine(snapshot: AppSnapshot): string {
 
 function desktopPetBadge(snapshot: AppSnapshot): string {
   return `Lv.${petLevelForStage(visualStageForPet(snapshot.petState, snapshot.sessions))}`;
-}
-
-function feedbackForCodexEvidence(
-  latestEvent: CodexHookEvent | undefined,
-  evidence: CodexEventEvidence,
-): string {
-  if (evidence.buildSuccess || evidence.testSuccess) {
-    return "这次不是空转，我可以亮一点。";
-  }
-  if (latestEvent?.commandSummary.includes("build")) {
-    return "Codex 跑了 build，我在看结果。";
-  }
-  if (latestEvent?.hookEventName === "SessionStart") {
-    return "我听到 Codex 开工了，但先别急，交付了我才会变强。";
-  }
-  if (evidence.stopSeen && !evidence.hadFileEditTool) {
-    return "Codex 下班了，但项目没动，我不加分。";
-  }
-  if (evidence.userPromptSubmitted && !evidence.successfulCommands) {
-    return "你和 Codex 聊了，但我还没看到成果。";
-  }
-  return "暂无可评分的 Codex hook 证据。";
 }
 
 function nextStageInfo(score: number): { stage: PetStage; remaining: number; progress: number } | null {
