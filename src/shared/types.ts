@@ -219,6 +219,9 @@ export interface WeeklyReport {
   buildSuccessRate: number;
   promptClarityAverage: number;
   summary: string;
+  habitSummary: string;
+  optimizationAdvice: string;
+  nextPractice: string;
 }
 
 export type CodexHookEventName =

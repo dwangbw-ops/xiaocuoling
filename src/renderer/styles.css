@@ -772,16 +772,61 @@ h2 {
 
 .report-summary-card {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background: rgba(12, 13, 18, 0.42);
   padding: 12px;
 }
 
-.report-summary-card > strong {
+.report-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.report-card-heading strong {
   color: #f4f4f5;
   font-size: 13px;
+}
+
+.report-card-heading span {
+  border: 1px solid rgba(139, 92, 246, 0.36);
+  border-radius: 999px;
+  color: #c4b5fd;
+  font-size: 11px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.report-insight-list {
+  display: grid;
+  gap: 8px;
+}
+
+.report-insight {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 9px 10px;
+}
+
+.report-insight span {
+  display: block;
+  color: #a78bfa;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.report-insight p,
+.report-note {
+  margin: 0;
+}
+
+.report-note {
+  color: #a1a1aa !important;
+  font-size: 12px;
 }
 
 .tool-drawer-backdrop {

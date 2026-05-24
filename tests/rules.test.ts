@@ -433,4 +433,68 @@ describe("skill detection and weekly reports", () => {
     expect(report.summary).toContain("今日上升");
     expect(report.deliveredSessions).toBe(1);
   });
+
+  it("turns daily report evidence into usage habits and optimization advice", () => {
+    const report = buildWeeklyReport({
+      period: "daily",
+      startDate: "2026-05-24",
+      endDate: "2026-05-24",
+      currentSessions: [
+        {
+          status: "inactive",
+          buildSuccess: false,
+          testSuccess: false,
+          promptClarityScore: 18,
+          detectedSkills: [],
+        },
+        {
+          status: "unverified",
+          buildSuccess: false,
+          testSuccess: false,
+          promptClarityScore: 42,
+          detectedSkills: [],
+        },
+      ],
+      previousSessions: [],
+      aiCapabilityScore: 12,
+    });
+
+    expect(report.habitSummary).toContain("没有形成交付闭环");
+    expect(report.optimizationAdvice).toContain("结束前");
+    expect(report.nextPractice).toContain("目标");
+    expect(report.habitSummary).not.toMatch(/build|test|git|commit/i);
+    expect(report.optimizationAdvice).not.toMatch(/build|test|git|commit/i);
+  });
+
+  it("recognizes clearer delivered behavior without exposing technical report wording", () => {
+    const report = buildWeeklyReport({
+      period: "daily",
+      startDate: "2026-05-24",
+      endDate: "2026-05-24",
+      currentSessions: [
+        {
+          status: "delivered",
+          buildSuccess: true,
+          testSuccess: false,
+          promptClarityScore: 86,
+          detectedSkills: [],
+        },
+        {
+          status: "working",
+          buildSuccess: false,
+          testSuccess: false,
+          promptClarityScore: 78,
+          detectedSkills: [],
+        },
+      ],
+      previousSessions: [],
+      aiCapabilityScore: 45,
+    });
+
+    expect(report.habitSummary).toContain("会把目标说清楚");
+    expect(report.habitSummary).toContain("完成闭环");
+    expect(report.optimizationAdvice).toContain("复盘");
+    expect(report.nextPractice).toContain("验收标准");
+    expect(report.habitSummary).not.toMatch(/build|test|git|commit/i);
+  });
 });

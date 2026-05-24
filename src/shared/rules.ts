@@ -486,6 +486,29 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyReport {
   const current = summarizeWeek(input.currentSessions);
   const previous = summarizeWeek(input.previousSessions);
   const period = input.period ?? "weekly";
+  const habitInsights = buildHabitInsights(period, trendFromComparison(current, previous), current, previous);
+  const trend = habitInsights.trend;
+  const summary = buildTrendSummary(period, trend, current, previous, habitInsights);
+
+  return {
+    reportId: `${period}_${input.startDate}_${input.endDate}`,
+    period,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    aiCapabilityScore: input.aiCapabilityScore,
+    trend,
+    ...current,
+    summary,
+    habitSummary: habitInsights.habitSummary,
+    optimizationAdvice: habitInsights.optimizationAdvice,
+    nextPractice: habitInsights.nextPractice,
+  };
+}
+
+function trendFromComparison(
+  current: ReturnType<typeof summarizeWeek>,
+  previous: ReturnType<typeof summarizeWeek>,
+): Trend {
   const improvementCount = [
     current.effectiveSessions > previous.effectiveSessions,
     current.deliveredSessions > previous.deliveredSessions,
@@ -504,22 +527,11 @@ export function buildWeeklyReport(input: WeeklyReportInput): WeeklyReport {
     current.promptClarityAverage < previous.promptClarityAverage,
     current.newSkills < previous.newSkills,
   ].filter(Boolean).length;
-  const trend: Trend =
-    improvementCount >= 2 ? "up" : declineCount >= 2 ? "down" : "flat";
-
-  return {
-    reportId: `${period}_${input.startDate}_${input.endDate}`,
-    period,
-    startDate: input.startDate,
-    endDate: input.endDate,
-    aiCapabilityScore: input.aiCapabilityScore,
-    trend,
-    ...current,
-    summary: buildTrendSummary(period, trend, current, previous),
-  };
+  return improvementCount >= 2 ? "up" : declineCount >= 2 ? "down" : "flat";
 }
 
 export function summarizeWeek(sessions: WeeklySessionInput[]) {
+  const sessionCount = sessions.length;
   const effectiveSessions = sessions.filter((session) =>
     ["working", "delivered", "breakthrough"].includes(session.status),
   ).length;
@@ -545,6 +557,7 @@ export function summarizeWeek(sessions: WeeklySessionInput[]) {
     .size;
 
   return {
+    sessionCount,
     effectiveSessions,
     inactiveSessions,
     deliveredSessions,
@@ -562,11 +575,109 @@ function buildTrendSummary(
   trend: Trend,
   current: ReturnType<typeof summarizeWeek>,
   previous: ReturnType<typeof summarizeWeek>,
+  insights: HabitInsights,
 ): string {
   const periodText = period === "daily" ? "今日" : "本周";
   const trendText =
     trend === "up" ? `${periodText}上升` : trend === "down" ? `${periodText}下降` : `${periodText}暂无明显变化`;
-  return `你的 AI 使用能力${trendText}。有效 session 从 ${previous.effectiveSessions} 次变为 ${current.effectiveSessions} 次，交付闭环从 ${previous.deliveredSessions} 次变为 ${current.deliveredSessions} 次，新增技能 ${current.newSkills} 个。仍有 ${current.inactiveSessions} 次 session 没有留下可验证成果。`;
+  const comparison =
+    current.sessionCount > 0 || previous.sessionCount > 0
+      ? `使用闭环从 ${previous.deliveredSessions} 次变为 ${current.deliveredSessions} 次。`
+      : "还没有可分析的使用记录。";
+  return `你的 AI 使用能力${trendText}。${comparison}${insights.habitSummary}${insights.optimizationAdvice}`;
+}
+
+interface HabitInsights {
+  trend: Trend;
+  habitSummary: string;
+  optimizationAdvice: string;
+  nextPractice: string;
+}
+
+function buildHabitInsights(
+  period: "daily" | "weekly",
+  trend: Trend,
+  current: ReturnType<typeof summarizeWeek>,
+  previous: ReturnType<typeof summarizeWeek>,
+): HabitInsights {
+  const periodText = period === "daily" ? "今天" : "这周";
+  const averageText = period === "daily" ? "昨天" : "上周";
+
+  if (current.sessionCount === 0) {
+    return {
+      trend,
+      habitSummary: `${periodText}还没有可分析的 Codex 使用习惯。`,
+      optimizationAdvice: "先把一次使用缩小成一个明确目标，结束前留下可验证结果。",
+      nextPractice: "下一次先写 1 句话目标、1 个范围、1 条验收标准，再开始让 Codex 动手。",
+    };
+  }
+
+  const inactiveRatio = current.inactiveSessions / current.sessionCount;
+  const deliveredRatio = current.deliveredSessions / current.sessionCount;
+  const clarity = current.promptClarityAverage;
+
+  let habitSummary: string;
+  if (current.deliveredSessions === 0) {
+    habitSummary = `${periodText}的主要习惯是开始使用 Codex，但还没有形成交付闭环。`;
+  } else if (clarity >= 75 && current.deliveredSessions > 0) {
+    habitSummary = `${periodText}你会把目标说清楚，也能把一部分任务完成闭环。`;
+  } else if (inactiveRatio >= 0.5) {
+    habitSummary = `${periodText}有不少使用停在打开或沟通阶段，真正推进项目的次数偏少。`;
+  } else if (deliveredRatio >= 0.5) {
+    habitSummary = `${periodText}你更像是在围绕结果使用 Codex，而不是单纯试工具。`;
+  } else {
+    habitSummary = `${periodText}已经有工作推进，但完成闭环的比例还不稳定。`;
+  }
+
+  const optimizationAdvice = chooseOptimizationAdvice(periodText, averageText, current, previous);
+  const nextPractice = chooseNextPractice(current);
+
+  return {
+    trend,
+    habitSummary,
+    optimizationAdvice,
+    nextPractice,
+  };
+}
+
+function chooseOptimizationAdvice(
+  periodText: string,
+  averageText: string,
+  current: ReturnType<typeof summarizeWeek>,
+  previous: ReturnType<typeof summarizeWeek>,
+): string {
+  if (current.deliveredSessions === 0) {
+    return `${periodText}最该优化的是收尾动作：不要只让 Codex 改，结束前一定要确认结果能用。`;
+  }
+  if (current.promptClarityAverage < 55) {
+    return "你现在的目标描述偏散，容易让 Codex 先猜方向；先写清楚范围、限制和成功标准。";
+  }
+  if (current.inactiveSessions > previous.inactiveSessions && current.inactiveSessions > 0) {
+    return `${periodText}比${averageText}更容易空转，建议每次开始前先决定一个很小的可完成结果。`;
+  }
+  if (current.deliveredSessions > 0 && current.breakthroughSessions === 0) {
+    return "你已经能完成闭环，下一步要做的是复盘：哪类任务最顺、哪类任务最容易卡住。";
+  }
+  if (current.breakthroughSessions > 0) {
+    return "这次有新动作被真正用起来，接下来要在相似任务里重复一次，避免只停留在偶然成功。";
+  }
+  return "继续减少空聊，把每次使用都压成明确的小目标、明确边界和明确结果。";
+}
+
+function chooseNextPractice(current: ReturnType<typeof summarizeWeek>): string {
+  if (current.promptClarityAverage < 55) {
+    return "下一次先写清目标：只改哪里、不要改哪里、完成后用什么标准验收。";
+  }
+  if (current.deliveredSessions === 0) {
+    return "下一次只挑一个小任务，目标是从沟通走到一个可确认的结果。";
+  }
+  if (current.inactiveSessions > 0) {
+    return "下一次减少试探性提问，直接给 Codex 一个可执行的小范围任务。";
+  }
+  if (current.breakthroughSessions === 0) {
+    return "下一次在任务目标里提前写清验收标准，并在结束后做 30 秒复盘。";
+  }
+  return "下一次复用这次成功的指挥方式，看看能不能在同类问题里更快完成。";
 }
 
 function normalizePath(filePath: string): string {

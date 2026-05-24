@@ -269,7 +269,12 @@ const demoSnapshot: AppSnapshot = {
       buildSuccessRate: 67,
       promptClarityAverage: 84,
       summary:
-        "你的 Codex 能力本周上升。有效 session 增加，交付闭环增加，新增 Electron、本地存储和测试能力。仍有 1 次 session 没有留下可验证成果。",
+        "你的 AI 使用能力本周上升。使用闭环增加，目标表达更清楚，但仍有一次使用没有留下可验证成果。",
+      habitSummary: "这周你更像是在围绕结果使用 Codex，而不是单纯试工具。",
+      optimizationAdvice:
+        "你已经能完成闭环，下一步要做的是复盘：哪类任务最顺、哪类任务最容易卡住。",
+      nextPractice:
+        "下一次在任务目标里提前写清验收标准，并在结束后做 30 秒复盘。",
     },
   ],
   activeSession: null,
@@ -1076,16 +1081,57 @@ function ReportSummary({
 
   return (
     <div className="report-summary-card">
-      <strong>{label}</strong>
-      <div className="report-grid">
-        <Metric label="有效" value={report.effectiveSessions} />
-        <Metric label="交付" value={report.deliveredSessions} />
-        <Metric label="突破" value={report.breakthroughSessions} />
-        <Metric label="验证率" value={`${report.buildSuccessRate}%`} />
+      <div className="report-card-heading">
+        <strong>{label}</strong>
+        <span>{trendText(report.trend)}</span>
       </div>
-      <p>{report.summary}</p>
+      <div className="report-insight-list">
+        <ReportInsight label="使用习惯" text={report.habitSummary ?? fallbackHabitSummary(report)} />
+        <ReportInsight
+          label="优化方向"
+          text={report.optimizationAdvice ?? fallbackOptimizationAdvice(report)}
+        />
+        <ReportInsight label="下一次练习" text={report.nextPractice ?? fallbackNextPractice(report)} />
+      </div>
+      <p className="report-note">{report.summary}</p>
     </div>
   );
+}
+
+function ReportInsight({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="report-insight">
+      <span>{label}</span>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+function trendText(trend: WeeklyReport["trend"]) {
+  if (trend === "up") return "变好";
+  if (trend === "down") return "变弱";
+  return "暂无明显变化";
+}
+
+function fallbackHabitSummary(report: WeeklyReport) {
+  if (report.deliveredSessions > 0) return "你已经开始把 Codex 使用推进到可确认的结果。";
+  if (report.effectiveSessions > 0) return "你有推进项目的动作，但还没有稳定形成闭环。";
+  return "你有 Codex 基础，但我还没看到真实交付。";
+}
+
+function fallbackOptimizationAdvice(report: WeeklyReport) {
+  if (report.promptClarityAverage < 55) {
+    return "先把目标、范围和成功标准写清楚，再让 Codex 动手。";
+  }
+  if (report.deliveredSessions === 0) {
+    return "减少只聊不收尾的使用方式，结束前确认结果能用。";
+  }
+  return "保留这次有效的指挥方式，并复盘哪里最容易卡住。";
+}
+
+function fallbackNextPractice(report: WeeklyReport) {
+  if (report.inactiveSessions > 0) return "下一次直接给一个小范围任务，避免只停留在沟通。";
+  return "下一次用一句话写清验收标准，再开始执行。";
 }
 
 function ScoreEvidenceCard({ snapshot }: { snapshot: AppSnapshot }) {
